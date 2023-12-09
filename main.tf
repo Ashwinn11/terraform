@@ -88,3 +88,40 @@ resource "aws_instance" "webserver" {
   user_data=base64encode(file("userdata.sh"))
 
 }
+resource "aws_lb" "myLb" {
+  load_balancer_type = "application"
+  name = "load"
+  internal = false
+  security_groups = [aws_security_group.webSg.id]
+  subnets = [aws_subnet.sub1.id,aws_subnet.sub2.id]
+  tags = {
+    Name = "webLb"
+  }
+}
+resource "aws_lb_target_group" "targetGroup" {
+  name = "targetGroupLb"
+  port = 80
+  protocol = "HTTP"
+  vpc_id = aws_vpc.myVpc.id
+  health_check {
+    path ="/"
+    port = "traffic-port"
+  }
+}
+resource "aws_lb_target_group_attachment" "attach" {
+  target_group_arn = aws_lb_target_group.targetGroup.arn
+  target_id        = aws_instance.webserver.id
+  port =80
+}
+resource "aws_lb_listener" "listener" {
+  load_balancer_arn = aws_lb.myLb.arn
+  port =80
+  protocol = "HTTP"
+  default_action {
+    type = "forward"
+    target_group_arn = aws_lb_target_group.targetGroup.arn
+  }
+}
+output "result" {
+  value = aws_lb.myLb.dns_name
+}
